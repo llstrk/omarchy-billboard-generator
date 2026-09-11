@@ -2,6 +2,10 @@ import {createGlyphPiles} from './glyph-piles.js';
 const sparkCodes=new Set([..."*.,'`+^·"].map(c=>c.codePointAt(0)));
 const isSpark=(f,i)=>sparkCodes.has(f.symbols[i])&&!(f.flags[i]&32);
 const brightness=color=>Math.max((color>>16)&255,(color>>8)&255,color&255);
+export function withoutFloor(frame,columns,rows){
+ const symbols=frame.symbols.slice();for(let i=(rows-1)*columns;i<rows*columns;i++)if(isSpark(frame,i))symbols[i]=32;
+ return {...frame,symbols};
+}
 export function createIndependentSparks(primary,secondary,columns,rows,cellW,cellH,originX,originY,{width,height,scale=1,mapY=row=>originY+row*cellH,floorY=originY+(rows-.5)*cellH}){
  const groundDurationMultiplier=4,cache=new Map(),runs=[];
  function glyph(code,color,flags){
@@ -38,14 +42,14 @@ export function createIndependentSparks(primary,secondary,columns,rows,cellW,cel
    const ids=[];for(let i=0;i<(rows-1)*columns;i++)if(isSpark(f,i)){ids.push(i);airborneFrameSamples[emitter]++;}return ids.join(',');
   });if(positions[0]!==positions[1])differentAirborneFrames++;
  }
- const stripped=primary.map(f=>{const symbols=f.symbols.slice();for(let i=(rows-1)*columns;i<rows*columns;i++)if(isSpark(f,i))symbols[i]=32;return {...f,symbols};});
+ const stripped=primary.map(f=>withoutFloor(f,columns,rows));
  const metadata={primarySeed:42,secondarySeed:137,airborneFrameSamples,differentAirborneFrames,method:'Independent native WASM simulations, not offset duplicates',groundDurationMultiplier,groundTiming:'Landing unchanged; replay cooling/color samples at quarter speed after landing',groundEventCount:runs.length,nativeGroundFrameSamples:nativeSamples,extendedGroundFrameSamples:nativeSamples*groundDurationMultiplier,lastGroundFrame:Math.max(...runs.map(r=>r.start+r.samples.length*groundDurationMultiplier-1)),groundEvents:runs.map(r=>({emitter:r.emitter,col:r.col,start:r.start,nativeFrames:r.samples.length,extendedFrames:r.samples.length*groundDurationMultiplier}))};
  const piles=createGlyphPiles(runs,{columns,rows,cellW,cellH,originX,lifetime:groundDurationMultiplier,drawGlyph,width,scale});
  metadata.piles=piles.metadata;
- function drawAirborne(ctx,index){
+ function drawAirborne(ctx,index,f=secondary[index]){
   let count=0;
   if(index>=125)return count;
-  const f=secondary[index];for(let i=0;i<(rows-1)*columns;i++)if(isSpark(f,i)){
+  for(let i=0;i<(rows-1)*columns;i++)if(isSpark(f,i)){
    if(drawGlyph(ctx,i%columns,Math.floor(i/columns),{code:f.symbols[i],color:f.fg[i]&0xffffff,flags:f.flags[i]}))count++;
   }
   return count;

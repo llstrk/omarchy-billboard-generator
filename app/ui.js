@@ -1,4 +1,6 @@
 import { startDesktopTheme } from './desktop-theme.js';
+import { videoTimeline, phaseLabel, remapFrame } from '../web/timeline.js';
+let timeline = videoTimeline();
 const $ = id => document.getElementById(id);
 let stopDesktopTheme = () => {};
 let catalog, token, previewId, previewWindow, previewWarnings = [], currentFrame = 295;
@@ -39,7 +41,7 @@ function controls() {
   disableControls('#play, #restart, #scrubber, [data-frame]', playbackUnavailable());
 }
 function selections() {
-  return { theme: $('theme').value, animation: $('animation').value, background: $('background').value, language: $('language').value, tld: $('tld').value, width: $('width').value, height: $('height').value };
+  return { theme: $('theme').value, animation: $('animation').value, background: $('background').value, language: $('language').value, tld: $('tld').value, duration: $('duration').value, width: $('width').value, height: $('height').value };
 }
 function drawPalette(theme) {
   $('palette').replaceChildren();
@@ -81,12 +83,21 @@ async function loadCatalog() {
   $('source').textContent = `WEBSITE SNAPSHOT / ${catalog.commit.slice(0, 12)}`;
   paletteAndCopy();
 }
-function phase(frame) { return frame < 125 ? 'Animation' : frame < 175 ? 'Typing tagline' : frame < 238 ? 'Tagline hold' : frame < 263 ? 'Domain reveal' : 'Domain hold'; }
+function updateTimeline(next) {
+  currentFrame = remapFrame(currentFrame, timeline, next); timeline = next;
+  $('scrubber').max = String(timeline.lastFrame);
+  $('export-spec').textContent = `${timeline.duration} seconds · 25 fps · H.264 · No audio`;
+  for (const button of document.querySelectorAll('[data-phase]')) {
+    const phase = timeline.phases.find(p => p.id === button.dataset.phase);
+    button.dataset.frame = String(phase.firstFrame);
+    button.querySelector('span').textContent = `${Number(phase.start.toFixed(2))}s`;
+  }
+}
 function seek(frame) {
-  currentFrame = Math.max(0, Math.min(374, Math.round(frame)));
+  currentFrame = Math.max(0, Math.min(timeline.lastFrame, Math.round(frame)));
   if (previewWindow?.ready) previewWindow.renderFrame(currentFrame, false);
-  $('scrubber').value = String(currentFrame); $('time').textContent = `${(currentFrame === 374 ? 15 : currentFrame / 25).toFixed(2)} / 15.00 s`;
-  $('frame-number').textContent = `FRAME ${currentFrame} / 374`; $('phase').textContent = phase(currentFrame);
+  $('scrubber').value = String(currentFrame); $('time').textContent = `${(currentFrame === timeline.lastFrame ? timeline.duration : currentFrame / 25).toFixed(2)} / ${timeline.duration.toFixed(2)} s`;
+  $('frame-number').textContent = `FRAME ${currentFrame} / ${timeline.lastFrame}`; $('phase').textContent = phaseLabel(timeline, currentFrame);
 }
 function stop(clearResume = true) {
   if (clearResume) resumeAfterRefresh = false;
@@ -104,10 +115,10 @@ function startPlayback() {
 function tick(time) {
   if (!playing) return;
   const elapsedFrames = (time - epoch) / 40;
-  const frame = Math.min(374, Math.max(currentFrame, Math.floor(elapsedFrames)));
+  const frame = Math.min(timeline.lastFrame, Math.max(currentFrame, Math.floor(elapsedFrames)));
   try { if (frame !== currentFrame) seek(frame); } catch (error) { stop(); showError(error.message); return; }
-  // The final encoded frame starts at 14.96 s and remains visible until 15 s.
-  if (elapsedFrames >= 375) stop(); else animation = requestAnimationFrame(tick);
+  // Keep the final encoded frame visible for its complete 40 ms interval.
+  if (elapsedFrames >= timeline.frameCount) stop(); else animation = requestAnimationFrame(tick);
 }
 function navigateTimeline(frame) {
   const wasPlaying = playing;
@@ -117,7 +128,7 @@ function navigateTimeline(frame) {
 function play() {
   if (!previewId) return;
   if (playing) { stop(); return; }
-  if (currentFrame >= 374) seek(0);
+  if (currentFrame >= timeline.lastFrame) seek(0);
   startPlayback();
 }
 function fitPreview() {
@@ -162,6 +173,7 @@ async function waitForPreview(iframe, version) {
   return null;
 }
 function activatePreview(win, data) {
+  updateTimeline(win.layout.timeline);
   previewWindow = win; previewId = data.id; seek(currentFrame);
   win.document.addEventListener('keydown', playbackShortcut);
   showWarnings([...previewWarnings, ...win.layout.warnings]);

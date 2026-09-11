@@ -29,10 +29,11 @@ export function createEncoder(ffmpeg, args) {
   return { abort, write, close, finish: async () => { child.stdin.end(); await completion; } };
 }
 export async function encodeFrames(renderer, encoder, signal, progress) {
-  for (let index = 0; index < 375; index++) {
+  const { frameCount } = renderer.layout.timeline;
+  for (let index = 0; index < frameCount; index++) {
     signal?.throwIfAborted();
     await encoder.write(await renderer.frame(index));
-    if (index % 50 === 0) progress(`Frame ${index + 1}/375`);
+    if (index % 50 === 0) progress(`Frame ${index + 1}/${frameCount}`);
   }
   await encoder.finish();
 }

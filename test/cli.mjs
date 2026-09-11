@@ -61,6 +61,20 @@ await writeFile(join(cwd, 'broken.json'), '{}'); const customHash = await digest
 const badTheme = spawnSync(cli, ['--theme-file', 'broken.json', '--force', '--output', 'custom.mp4'], settings);
 assert.equal(badTheme.status, 1); assert.match(badTheme.stderr, /Invalid theme file/);
 assert.equal(await digest(join(cwd, 'custom.mp4')), customHash);
+for (const duration of [10, 30]) {
+  const filename = `duration-${duration}.mp4`, path = join(cwd, filename);
+  const result = run(['--duration', String(duration), '--resolution', '320x96', '--output', filename]);
+  assert.match(result, new RegExp(`${duration} seconds, ${duration * 25} frames`));
+  const video = await verifyVideo(path, ffprobe, { duration });
+  assert.equal(JSON.parse(video.format.tags.comment).duration, duration);
+  execFileSync(ffmpeg, ['-v', 'error', '-xerror', '-i', path, '-f', 'null', '-'], settings);
+  const original = await digest(path);
+  for (const value of ['9', '31', '10.5']) {
+    const rejected = spawnSync(cli, ['--duration', value, '--force', '--output', filename], settings);
+    assert.equal(rejected.status, 1); assert.match(rejected.stderr, /whole number.*10 to 30/);
+    assert.equal(await digest(path), original, 'Invalid duration must not replace an existing video.');
+  }
+}
 await writeFile(join(cwd, 'cli.log'), log + replacement + customLog);
 await writeFile(join(base, 'report.json'), JSON.stringify({ cwd, website: metadata, campaign: campaignMetadata, custom: customMetadata,
   checks: ['executable entry point from another working directory', 'help and catalogs', 'invalid animation rejection',

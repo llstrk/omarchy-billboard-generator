@@ -3,6 +3,7 @@ import { mkdtemp, mkdir, readFile, rm, access } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { execFileSync, spawn } from 'node:child_process';
 import { installationPaths, installRelease, extractRelease } from '../scripts/install.mjs';
+import { verifyVideo } from '../src/video-verification.js';
 
 const base = resolve('.cache/release-install-tests'); await mkdir(base, { recursive: true });
 const work = await mkdtemp(join(base, 'release-')), home = join(work, "user space's-home");
@@ -24,11 +25,24 @@ try {
   const probe = JSON.parse(execFileSync(process.env.BILLBOARD_FFPROBE || 'ffprobe', ['-v', 'error', '-show_entries', 'format_tags=comment', '-of', 'json', output]));
   const settings = JSON.parse(probe.format.tags.comment);
   assert.equal(settings.theme, 'astral'); assert.equal(settings.animation, 'laseretch-campaign');
+  assert.equal(settings.duration, 15); assert.equal(settings.frameCount, 375);
+  assert.equal(settings.timeline.policy, 'fixed-transitions-v1');
   assert.equal(settings.intro.version, 1);
   assert.equal(settings.intro.moveStart, 4.5); assert.equal(settings.intro.moveEnd, 5);
   assert.ok(settings.intro.large.width > settings.intro.final.width);
   assert.equal(settings.fixedGroundLayer, true); assert.equal(settings.nativeLaserTailClock, true);
   execFileSync(process.env.BILLBOARD_FFMPEG || 'ffmpeg', ['-v', 'error', '-xerror', '-i', output, '-f', 'null', '-'], { timeout: 30000 });
+  const videos = [output];
+  for (const duration of [10, 30]) {
+    const video = join(home, `${duration}-seconds.mp4`); videos.push(video);
+    execFileSync(cli, ['--duration', String(duration), '--animation', 'sweep', '--resolution', '320x96', '--output', video], { env, timeout: 90000, stdio: 'pipe' });
+    const verified = await verifyVideo(video, process.env.BILLBOARD_FFPROBE || 'ffprobe', { duration });
+    const timeline = JSON.parse(verified.format.tags.comment).timeline;
+    assert.equal(timeline.frameCount, duration * 25);
+    for (const [id, seconds] of [['move', .5], ['tagline', 2], ['domain', 1]]) assert.equal(timeline.phases.find(p => p.id === id).duration, seconds);
+    assert.ok(timeline.phases[0].duration <= 7);
+    execFileSync(process.env.BILLBOARD_FFMPEG || 'ffmpeg', ['-v', 'error', '-xerror', '-i', video, '-f', 'null', '-'], { timeout: 30000 });
+  }
   app = spawn(join(paths.bin, 'omarchy-billboard-app'), ['--no-window'], { env, stdio: ['ignore', 'pipe', 'pipe'] });
   closed = new Promise(resolve => app.once('close', resolve));
   let stdout = '', stderr = ''; app.stdout.on('data', bytes => { stdout += bytes; }); app.stderr.on('data', bytes => { stderr += bytes; });
@@ -36,9 +50,10 @@ try {
   assert.ok(stdout.includes('Local app:'), `Installed app did not start: ${stderr}`);
   app.kill('SIGTERM'); assert.equal(await closed, 0, stderr); app = null;
   execFileSync(manager, ['uninstall'], { env, encoding: 'utf8' });
-  await access(output); await assert.rejects(access(cli), { code: 'ENOENT' });
+  for (const video of videos) await access(video);
+  await assert.rejects(access(cli), { code: 'ENOENT' });
   assert.ok((await readFile(output)).length > 0);
-  console.log('Committed release archive installed without a checkout, rendered and decoded Astral/campaign defaults, started the app, and uninstalled while preserving the video.');
+  console.log('Committed release archive installed without a checkout, rendered and decoded 10/15/30-second videos with fixed transition speeds, started the app, and uninstalled while preserving videos.');
 } finally {
   if (app) { app.kill('SIGTERM'); await closed; }
   for (const [key, value] of Object.entries(original)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }

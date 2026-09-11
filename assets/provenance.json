@@ -47,8 +47,8 @@
     },
     {
       "file": "web/independent-sparks.js",
-      "sha256": "b0ebf6e96ffa605a1fcc80ae5f32bb11382eacfd70d2e5c47dc8bf9d78a20568",
-      "modification": "Resolution-aware placement with separately callable airborne and ground painters. Native simulation events, cooling samples and irregular pile behavior retained.",
+      "sha256": "ad9132795efdde0ea6de7c79675be9e77b26de6e6431ee41de5310a23e301f67",
+      "modification": "Resolution-aware placement with separate airborne and ground painters and duration-aware airborne sampling. Canonical native ground events, cooling samples and irregular pile behavior retained.",
       "modified": true,
       "rights": "Redistributed with permission; third-party rights are not replaced by the project license."
     },

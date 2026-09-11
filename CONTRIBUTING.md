@@ -13,12 +13,15 @@ npm run test:custom-themes
 npm run test:animations
 npm run test:canvas-effects
 npm run test:intro
+npm run test:duration
+npm run test:duration-effects
+npm run test:cursor
 npm run test:visual
 npm run test:integration
 npm run test:experimental
 ```
 
-Unit tests cover options, themes, assets, geometry, fonts, synchronization, request security, output safety and resource cleanup. Browser suites exercise deterministic frames, all website effects, theme imports, playback, real exports and cancellation. The installer suite uses isolated user directories, not your desktop configuration.
+Unit tests cover options, themes, assets, geometry, fonts, synchronization, request security, output safety and resource cleanup. Browser suites exercise deterministic frames, all website effects, theme imports, playback, real exports and cancellation. The duration suite checks all 21 supported lengths, including encoded frame counts and full decoding. The duration-effects suite checks all website effects at both endpoints. The installer suite uses isolated user directories, not your desktop configuration.
 
 Inside a graphical Omarchy session, `npm run test:app-window` opens and closes a test app window. Add `-- --sighup` to test terminal-hangup cleanup. Other tests do not need an interactive desktop.
 

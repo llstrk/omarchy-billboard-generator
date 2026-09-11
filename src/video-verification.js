@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { videoTimeline } from '../web/timeline.js';
 
 function probeFailure(failure, stderr) { return Error(`ffprobe failed: ${failure?.message ?? failure ?? stderr}`, { cause: failure }); }
 function probeOutput(path, ffprobe, signal, timeoutMs) {
@@ -25,15 +26,16 @@ function probeOutput(path, ffprobe, signal, timeoutMs) {
     });
   });
 }
-function validStream(video) {
+function validStream(video, timeline) {
   const expected = { codec_name: 'h264', pix_fmt: 'yuv420p', sample_aspect_ratio: '1:1', avg_frame_rate: '25/1' };
-  return Object.entries(expected).every(([key, value]) => video[key] === value) && Number(video.nb_read_frames) === 375;
+  return Object.entries(expected).every(([key, value]) => video[key] === value) && Number(video.nb_read_frames) === timeline.frameCount;
 }
-function validateVideo(data) {
-  if (data.streams.length !== 1 || !validStream(data.streams[0]) || Math.abs(Number(data.format.duration) - 15) > .001) throw Error('Encoded video failed format validation.');
+function validateVideo(data, timeline) {
+  if (data.streams.length !== 1 || !validStream(data.streams[0], timeline) || !(Math.abs(Number(data.format.duration) - timeline.duration) <= .001)) throw Error('Encoded video failed format validation.');
   return data;
 }
-export async function verifyVideo(path, ffprobe, { signal, timeoutMs = 120000 } = {}) {
+export async function verifyVideo(path, ffprobe, { signal, timeoutMs = 120000, duration = 15 } = {}) {
   signal?.throwIfAborted();
-  return validateVideo(JSON.parse(await probeOutput(path, ffprobe, signal, timeoutMs)));
+  const timeline = videoTimeline(duration);
+  return validateVideo(JSON.parse(await probeOutput(path, ffprobe, signal, timeoutMs)), timeline);
 }

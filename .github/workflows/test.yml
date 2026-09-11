@@ -22,6 +22,9 @@ jobs:
       - run: npm test
       - run: npm run test:install
       - run: npm run test:intro
+      - run: npm run test:duration
+      - run: npm run test:duration-effects
+      - run: npm run test:cursor
       - run: npm run test:canvas-effects
       - run: npm run test:release-install
       - run: npm run audit:public

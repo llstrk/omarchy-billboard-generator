@@ -10,6 +10,7 @@ import { executable } from './runtime-paths.js';
 import { openRenderer } from './browser-renderer.js';
 import { createEncoder, encodeFrames } from './encoder.js';
 import { verifyVideo } from './video-verification.js';
+import { durationSeconds } from '../web/timeline.js';
 export { root, executable } from './runtime-paths.js';
 export { openRenderer } from './browser-renderer.js';
 export { verifyVideo } from './video-verification.js';
@@ -40,19 +41,20 @@ function videoMetadata(options, snapshot, palette, renderer) {
     theme: options.theme, customTheme: options.customTheme, themeOrigin: palette.origin, themeProvenance: palette.provenance, background: options.background ?? 'theme', backgroundColor: palette.background,
     language: options.language, tld: options.tld, resolution: `${options.width}x${options.height}`, encodedResolution: `${size.width}x${size.height}`,
     animation: renderer.layout.settings.animation, animationProvenance: renderer.layout.animationProvenance, animationViewport: renderer.layout.animationViewport,
+    duration: renderer.layout.timeline.duration, frameCount: renderer.layout.timeline.frameCount, timeline: renderer.layout.timeline,
     intro: renderer.layout.intro, fixedGroundLayer: renderer.layout.fixedGroundLayer, nativeLaserTailClock: renderer.layout.nativeLaserTailClock,
     seeds: renderer.layout.seeds, browser: renderer.browserVersion });
 }
-function encoderArgs(background, metadata, temporary) {
+function encoderArgs(background, metadata, temporary, frameCount) {
   return ['-hide_banner', '-loglevel', 'error', '-n', '-f', 'image2pipe', '-framerate', '25', '-vcodec', 'png', '-i', 'pipe:0',
     '-vf', `pad=ceil(iw/2)*2:ceil(ih/2)*2:0:0:color=${background.replace('#', '0x')},setsar=1`,
-    '-c:v', 'libx264', '-threads', '4', '-preset', 'fast', '-crf', '16', '-pix_fmt', 'yuv420p', '-r', '25', '-frames:v', '375', '-an',
+    '-c:v', 'libx264', '-threads', '4', '-preset', 'fast', '-crf', '16', '-pix_fmt', 'yuv420p', '-r', '25', '-frames:v', String(frameCount), '-an',
     '-metadata', `comment=${metadata}`, '-movflags', '+faststart', '-f', 'mp4', temporary];
 }
 async function verifyDimensions(options, prepared, signal) {
   const { width, height } = encodedSize(options);
-  const timeoutMs = Math.max(120000, Math.ceil(width * height / (3840 * 2160)) * 120000);
-  const verified = await verifyVideo(prepared.temporary, prepared.ffprobe, { signal, timeoutMs: Math.min(timeoutMs, 2147483647) });
+  const timeoutMs = Math.max(120000, Math.ceil(width * height / (3840 * 2160) * options.duration / 15) * 120000);
+  const verified = await verifyVideo(prepared.temporary, prepared.ffprobe, { signal, timeoutMs: Math.min(timeoutMs, 2147483647), duration: options.duration });
   if (verified.streams[0].width !== width || verified.streams[0].height !== height) throw Error('Encoded dimensions do not match requested resolution.');
   return verified;
 }
@@ -69,14 +71,14 @@ async function encode(options, snapshot, prepared, resources, hooks) {
   reportWarnings(renderer.layout.warnings, warn);
   const palette = renderTheme(options, snapshot), metadata = videoMetadata(options, snapshot, palette, renderer);
   progress(`Rendering ${options.width}x${options.height}, ${options.theme}, ${options.language}, OMARCHY${options.tld}\nUpstream: ${snapshot.repository}@${snapshot.commit}`);
-  resources.encoder = createEncoder(prepared.ffmpeg, encoderArgs(palette.background, metadata, prepared.temporary));
+  resources.encoder = createEncoder(prepared.ffmpeg, encoderArgs(palette.background, metadata, prepared.temporary, renderer.layout.timeline.frameCount));
   await encodeFrames(renderer, resources.encoder, signal, progress);
   signal?.throwIfAborted();
   progress('Verifying encoded video…');
   const verified = await verifyDimensions(options, prepared, signal);
   signal?.throwIfAborted();
   await publish(prepared.temporary, prepared.output, options.force);
-  progress(`Saved ${prepared.output} (15 seconds, 375 frames, H.264/yuv420p, no audio).`);
+  progress(`Saved ${prepared.output} (${options.duration} seconds, ${renderer.layout.timeline.frameCount} frames, H.264/yuv420p, no audio).`);
   return { output: prepared.output, layout: renderer.layout, verified };
 }
 async function cleanup(resources, temporary) {
@@ -84,7 +86,7 @@ async function cleanup(resources, temporary) {
   try { await resources.renderer?.close(); } finally { await rm(temporary, { force: true }); }
 }
 export async function renderVideo(options, snapshot, { signal, progress = console.log, warn = console.warn } = {}) {
-  options = await resolveThemeOptions(options);
+  options = { ...await resolveThemeOptions(options), duration: durationSeconds(options.duration) };
   reportWarnings(combinationWarnings(options), warn);
   const prepared = await prepareOutput(options, signal), resources = {};
   const abort = () => resources.encoder?.abort();

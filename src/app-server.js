@@ -9,6 +9,7 @@ import { userDataDirectory } from './user-paths.js';
 import { prepareRenderConfig } from './render-config.js';
 import { loadSnapshot, syncSnapshot } from './snapshot.js';
 import { parseOptions } from './options.js';
+import { durationSeconds } from '../web/timeline.js';
 import { combinationWarnings } from './support.js';
 import { runAppExport } from './app-jobs.js';
 import { createDesktopThemeReader } from './desktop-theme.js';
@@ -28,12 +29,12 @@ function textOptions(body) {
   return args;
 }
 function previewOptions(body, snapshot, customThemes) {
-  fields(body, ['theme', 'animation', 'background', 'language', 'tld', 'width', 'height']);
+  fields(body, ['theme', 'animation', 'background', 'language', 'tld', 'width', 'height', 'duration']);
   const width = body.width ?? 900, height = body.height ?? 240;
   if (![width, height].every(v => ['number', 'string'].includes(typeof v))) throw error(400, 'Dimensions must be numbers.');
   const custom = customThemes.get(body.theme);
   const values = custom ? { ...body, theme: undefined } : body;
-  const options = parseOptions([...textOptions(values), '--resolution', `${width}x${height}`], snapshot);
+  const options = parseOptions([...textOptions(values), '--resolution', `${width}x${height}`, '--duration', String(durationSeconds(body.duration))], snapshot);
   return custom ? { ...options, theme: custom.palette.id, customTheme: custom.document } : options;
 }
 function safeFilename(value) {
@@ -81,7 +82,7 @@ const uiMessage = e => e.message.replace(/Use --force\b/g, 'Enable Overwrite').r
 function jobCallbacks(job) {
   return {
     signal: job.controller.signal,
-    progress: text => { job.message = text; const frame = /^Frame (\d+)\/375$/.exec(text); if (frame) job.percent = Math.floor(Number(frame[1]) / 375 * 98); },
+    progress: text => { job.message = text; const frame = /^Frame (\d+)\/(\d+)$/.exec(text); if (frame) job.percent = Math.min(98, Math.floor(Number(frame[1]) / (job.settings.duration * 25) * 98)); },
     warn: text => { const warning = text.replace(/^Warning: /, ''); if (!job.warnings.includes(warning)) job.warnings.push(warning); },
   };
 }

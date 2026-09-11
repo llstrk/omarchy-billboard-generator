@@ -1,4 +1,5 @@
 import { attachment, smootherstep } from './layout.js';
+import { videoTimeline, phaseById } from './timeline.js';
 
 export const INTRO_MOVE_START = 4.5, INTRO_MOVE_END = 5;
 export function introProgress(time) {
@@ -22,9 +23,10 @@ export function introPose(layout, time) {
   const mix = key => large[key] + (small[key] - large[key]) * p;
   return { x: Math.round(mix('x')), y: Math.round(mix('y')), width: mix('width'), height: mix('height'), scale: mix('scale') };
 }
-export function introMetadata(layout) {
-  return { version: 1, large: largePose(layout), final: finalPose(layout), effectTimeScale: INTRO_MOVE_END / INTRO_MOVE_START,
-    moveStart: INTRO_MOVE_START, moveEnd: INTRO_MOVE_END, easing: 'quintic smootherstep',
+export function introMetadata(layout, timeline = videoTimeline()) {
+  const move = phaseById(timeline, 'move');
+  return { version: 1, large: largePose(layout), final: finalPose(layout), effectTimeScale: INTRO_MOVE_END / move.start,
+    moveStart: move.start, moveEnd: move.end, easing: 'quintic smootherstep',
     fit: 'Uniform wordmark scaling with piecewise canvas-margin fitting', finalColorTiming: 'During movement only' };
 }
 

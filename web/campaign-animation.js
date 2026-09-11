@@ -1,8 +1,9 @@
 import { paintFrame } from '../assets/runtime/assets/playback.js';
-import { createIndependentSparks } from './independent-sparks.js';
+import { createIndependentSparks, withoutFloor } from './independent-sparks.js';
 import { createSimulation } from './simulation.js';
 import { attachment, effectMapping } from './layout.js';
 import { introFrame, introPose, introMapping, mappedBox, drawMappedImage } from './intro.js';
+import { referenceFrame } from './timeline.js';
 
 function removeBlackBackground(nativeCtx, native) {
   const pixels = nativeCtx.getImageData(0, 0, native.width, native.height);
@@ -13,7 +14,7 @@ function removeBlackBackground(nativeCtx, native) {
 }
 export async function createCampaignAnimation(config, layout, artwork, ctx) {
   const { width, height, theme } = config, { cellW, cellH } = layout;
-  const sim = await createSimulation(), { columns, rows, padX, padTop, final, targets } = sim;
+  const sim = await createSimulation(fetch, config.timeline), { columns, rows, padX, padTop, final, targets } = sim;
   const effectX = attachment(layout, 0).x - padX * cellW;
   const { originY: effectY, splitRow, mapY } = effectMapping(layout, padTop, rows);
   const sparks = createIndependentSparks(sim.primary.frames, sim.secondary.frames, columns, rows, cellW, cellH, effectX, effectY,
@@ -39,8 +40,7 @@ export async function createCampaignAnimation(config, layout, artwork, ctx) {
       ctx.fillRect(box.x, box.y, box.width, box.height); ctx.drawImage(base, pose.x, pose.y); ctx.restore();
     }
   }
-  function drawLaser(index, pose, mapping) {
-    const f = sparks.withoutPrimaryFloor(index);
+  function drawLaser(f, pose, mapping) {
     // Preserve native effect colors; only pure black is transparent.
     paintFrame(nativeCtx, nativeLayout, f.symbols, f.fg, f.bg, f.flags, columns, rows, true);
     removeBlackBackground(nativeCtx, native);
@@ -54,21 +54,24 @@ export async function createCampaignAnimation(config, layout, artwork, ctx) {
     }
     ctx.restore(); replaceSettledCells(f, pose, mapping);
   }
-  function drawIntro(index) {
-    const pose = introPose(layout, index / 25), mapping = introMapping(layout, pose);
-    drawLaser(introFrame(index), pose, mapping);
+  function drawIntro(index, clock) {
+    const pose = introPose(layout, clock / 25), mapping = introMapping(layout, pose);
+    const frame = sim.playback ? withoutFloor(sim.playback.primary[index], columns, rows) : sparks.withoutPrimaryFloor(introFrame(clock));
+    drawLaser(frame, pose, mapping);
     // Airborne sparks follow the moving field, but retain their native clock.
     airborneCtx.clearRect(0, 0, width, height); airborneCtx.imageSmoothingEnabled = false;
-    sparks.drawAirborne(airborneCtx, index);
+    sparks.drawAirborne(airborneCtx, Math.floor(clock), sim.playback?.secondary[index]);
     ctx.save(); effectShadow(ctx); ctx.imageSmoothingEnabled = false;
     drawMappedImage(ctx, airborne, screen, screen, mapping); ctx.restore();
   }
   return {
     metadata: { seeds: [42, 137], simulationFps: 240, padX, padTop, totalSteps: sim.primary.totalSteps, sparkMetadata: sparks.metadata,
+      animationSamples: sim.playback?.primary.length ?? sim.primary.frames.length,
       nativeEffectColors: true, fixedGroundLayer: true, nativeLaserTailClock: true, lightEffectTreatment: theme.light ? 'Original colors with dark shadow for contrast' : 'Original colors' },
     draw(index, x) {
-      if (index >= 125) ctx.drawImage(artwork.base, x, layout.top); else drawIntro(index);
-      ctx.save(); effectShadow(ctx); ctx.imageSmoothingEnabled = false; sparks.drawGround(ctx, index); ctx.restore();
+      const clock = referenceFrame(config.timeline, index);
+      if (clock >= 125) ctx.drawImage(artwork.base, x, layout.top); else drawIntro(index, clock);
+      ctx.save(); effectShadow(ctx); ctx.imageSmoothingEnabled = false; sparks.drawGround(ctx, Math.floor(clock)); ctx.restore();
     },
   };
 }

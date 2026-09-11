@@ -1,8 +1,8 @@
 # Omarchy Billboard Generator
 
-Create animated OMARCHY domain videos with a local desktop app or CLI. Choose a theme, animation, domain suffix, language and canvas size. Each export is one 15-second MP4: 375 frames at 25 fps, H.264/yuv420p, square pixels and no audio.
+Create animated OMARCHY domain videos with a local desktop app or CLI. Choose a theme, animation, domain suffix, language and canvas size. Each export is one MP4 lasting 10–30 whole seconds: 250–750 frames at 25 fps, H.264/yuv420p, square pixels and no audio.
 
-**Defaults: Astral theme, laseretch - campaign animation, `.ORG`, English and 900×240.** The campaign effect includes native laser colors, two independent spark simulations and irregular ember piles. Another 37 website effects are available, including synthgrid, fireworks and matrix.
+**Defaults: Astral theme, laseretch - campaign animation, `.ORG`, English, 900×240 and 15 seconds.** The campaign effect includes native laser colors, two independent spark simulations and irregular ember piles. Another 37 website effects are available, including synthgrid, fireworks and matrix.
 
 This is a community project, not an official Omarchy product or endorsement.
 
@@ -25,7 +25,7 @@ The default Astral theme with the completed domain and tagline:
 
 </details>
 
-The output-folder label is generalized for privacy; the rest is captured directly from the app. These screenshots predate the fullscreen intro.
+The output-folder label is generalized for privacy; the rest is captured directly from the app. These screenshots predate the fullscreen intro and duration control.
 
 ## Install on Omarchy
 
@@ -41,7 +41,7 @@ Run the installer as your normal user, not with sudo. No Git or permanent checko
 curl -fsSL https://raw.githubusercontent.com/llstrk/omarchy-billboard-generator/main/install.sh | bash
 ```
 
-If you prefer to inspect scripts before executing them, review [`install.sh`](install.sh), then download `installer.mjs` and `SHA256SUMS` from the same [GitHub Release](https://github.com/llstrk/omarchy-billboard-generator/releases). Check with `sha256sum -c --ignore-missing SHA256SUMS`, review the installer, then run `node installer.mjs`. To select a version through the bootstrap, pipe it to `bash -s -- --version v0.1.0` instead of `bash`.
+If you prefer to inspect scripts before executing them, review [`install.sh`](install.sh), then download `installer.mjs` and `SHA256SUMS` from the same [GitHub Release](https://github.com/llstrk/omarchy-billboard-generator/releases). Check with `sha256sum -c --ignore-missing SHA256SUMS`, review the installer, then run `node installer.mjs`. To select a version through the bootstrap, pipe it to `bash -s -- --version v0.2.0` instead of `bash`.
 
 The installer downloads a versioned release, checks its SHA-256 digest, rejects unsafe archive entries, and installs locked production dependencies without npm lifecycle scripts. It adds:
 
@@ -70,7 +70,7 @@ omarchy-billboard-manage update
 Plain `update` reports when the latest version is already installed, without downloading and installing it again. The new release and dependencies are prepared before switching the active version. Failed downloads, dependency installation and ordinary activation errors preserve the previous installation. Older releases are retained until uninstall so an existing process is not deprived of its files, including across several updates. This uses additional disk space for each installed version; explicit reinstalls also retain a copy. To reinstall or select a particular published version:
 
 ```bash
-omarchy-billboard-manage update --version v0.1.0
+omarchy-billboard-manage update --version v0.2.0
 ```
 
 To remove the application and its owned commands/launcher, without deleting videos, synced data, caches or modified launcher files:
@@ -102,6 +102,7 @@ The app opens in a standalone Chromium window with a live preview, playback cont
 The interface follows the active Omarchy desktop palette without changing desktop configuration. Billboard colors remain independent. Missing desktop theme data uses a fallback interface palette.
 
 - Select a billboard theme, animation, language, suffix and resolution.
+- Set **Duration (seconds)** to any whole number from 10 to 30.
 - Import custom JSON palettes with **Import theme**. See [THEMES.md](THEMES.md).
 - Choose Theme, Black or White for the background.
 - Inspect layout, contrast and encoding notes in the preview.
@@ -111,7 +112,7 @@ The interface follows the active Omarchy desktop palette without changing deskto
 
 Press **Space** to play/pause, including when a dropdown, timeline scrubber or the preview has focus. Text-entry fields, buttons and checkboxes keep their normal keyboard behavior. Holding Space does not repeatedly toggle the playback shortcut.
 
-Changing Animation during playback restarts the new effect and keeps playing. Other edits preserve playback position. Paused edits preserve the selected frame. Editor selections and imported palettes last for the current session; videos and explicitly synced website data persist.
+Changing Animation during playback restarts the new effect and keeps playing. Changing Duration preserves relative progress and playing/paused state. Other edits preserve playback position. Paused edits preserve the selected frame unless duration changes. Editor selections and imported palettes last for the current session; videos and explicitly synced website data persist.
 
 For a browser tab instead of an app window:
 
@@ -126,7 +127,7 @@ Open the printed URL, including its session token. Stop the backend with Ctrl+C.
 ```bash
 omarchy-billboard --output omarchy.mp4
 omarchy-billboard --tld .dk --language da --resolution 1920x1080 --output omarchy-dk.mp4
-omarchy-billboard --animation synthgrid --theme astral --output synthgrid.mp4
+omarchy-billboard --animation synthgrid --theme astral --duration 20 --output synthgrid.mp4
 omarchy-billboard --theme-file examples/aurora.json --animation fireworks --output aurora.mp4
 omarchy-billboard --list-themes
 omarchy-billboard --list-languages
@@ -141,6 +142,7 @@ omarchy-billboard --list-animations
 | `--tld` | `.ORG` | Domain suffix, including multi-label and internationalized names |
 | `--language` | `en` | One of 31 bundled website locales |
 | `--resolution` | `900x240` | Positive integer WIDTHxHEIGHT |
+| `--duration` | `15` | Whole seconds from 10 to 30 inclusive |
 | `--background` | `theme` | `theme`, `black` or `white` |
 | `--output` | `omarchy.mp4` | Destination in an existing writable directory |
 | `--force` | off | Explicitly replace an existing output |
@@ -151,17 +153,22 @@ Every resolution is one canvas, never duplicated screens or a street mockup. The
 
 ## Animation and colors
 
-All animations begin with a large, centered wordmark that fits the canvas without changing its proportions. Between 4.5 and 5 seconds it smoothly shrinks into position above the tagline. The surrounding effect fits the canvas margins instead of globally zooming or cropping the whole frame. Final artwork is rasterized directly at each size.
+All animations begin with a large, centered wordmark that fits the canvas without changing its proportions. At the default 15-second duration, between 4.5 and 5 seconds it smoothly shrinks into position above the tagline. The surrounding effect fits the canvas margins instead of globally zooming or cropping the whole frame. Final artwork is rasterized directly at each size.
 
-The campaign animation retains native laser/spark colors and independent simulations. Only settled artwork receives the selected gradient. Its ember floor remains stationary near the canvas bottom during the move, with unchanged cooling timing. Pile packing is a visual support approximation, not a full particle collision simulation.
+The campaign animation retains native laser/spark colors and independent simulations. Only settled artwork receives the selected gradient. Its ember floor remains stationary near the canvas bottom during the move, with canonical ground events, cooling samples and pile packing preserved on the opening's reference clock. Pile packing is a visual support approximation, not a full particle collision simulation.
 
-Website effects retain precomputed canvas-sized simulation grids with overscan. Their cells follow the moving wordmark, and the final gradient settles during the same half-second move. Synthgrid can reach all four canvas edges. Text-focused effects may stay near the wordmark by design. Website `laseretch` is distinct from `laseretch-campaign` and does not receive additional campaign piles. Simulation grids above 200,000 cells fail before allocation.
+Website effects retain precomputed canvas-sized simulation grids with overscan. Their cells follow the moving wordmark, and the final gradient settles during the same move. Synthgrid can reach all four canvas edges. Text-focused effects may stay near the wordmark by design. Website `laseretch` is distinct from `laseretch-campaign` and does not receive additional campaign piles. Simulation grids above 200,000 cells fail before allocation. Cached simulation samples are also memory-bounded; extreme duration/layout combinations may require a shorter duration or less extreme layout.
 
-The timeline is fixed:
+Duration changes the initial effect and waiting/hold time, not transition speeds. The wordmark move and grading always take **0.5 seconds**, tagline typing **2 seconds**, and domain reveal **1 second**. Cursor blinking also keeps its real-time cadence.
+
+The opening takes 30% of the requested duration, capped at **7 seconds**. The wait before domain reveal grows from **1.25 seconds** at a 10-second duration to **2.5 seconds** at 15 seconds, then stays capped. Remaining time becomes the final hold. A 30-second video therefore has a 7-second opening and a 17-second final hold. Longer openings sample native trajectories more densely rather than stretching an encoded video. The 15-second sequence keeps its original timing and artwork. The typing cursor is vertically centered on the font's capital-letter height, so descenders do not pull it below letters such as DHH.
+
+The reference timeline at 15 seconds:
 
 - 0–4.5 seconds: selected effect draws a large, centered OMARCHY.
 - 4.5–5 seconds: wordmark shrinks into its final position; website-effect grading settles with the move.
 - 5–7 seconds: localized tagline, including DHH attribution, is typed.
+- 7–9.5 seconds: tagline holds.
 - 9.5–10.5 seconds: the suffix appears while the domain stays centered.
 - 10.5–15 seconds: completed composition holds.
 
@@ -178,7 +185,7 @@ omarchy-billboard sync --revision 5f908e4a85b8a4594be73db725906cf656660823
 
 Sync resolves one upstream commit, validates all data and atomically replaces `upstream.json` in the user data directory (normally `~/.local/share/omarchy-billboard-generator/`). Failed sync preserves the previous snapshot. Remove that cache file to restore bundled data. Sync does not update executable animation assets, fonts, campaign palettes or custom imports. Downloaded TypeScript is parsed as data, not executed.
 
-MP4 metadata records settings, translations, upstream revisions, simulation information and intro geometry/timing. Custom palette data is embedded without its input file path. No sidecar is created.
+MP4 metadata records settings, translations, upstream revisions, simulation information, duration, frame count, phase boundaries and intro geometry/timing. Custom palette data is embedded without its input file path. No sidecar is created.
 
 ## Troubleshooting and safety
 
@@ -187,7 +194,7 @@ MP4 metadata records settings, translations, upstream revisions, simulation info
 - Synced data lives in the user data directory, outside versioned application files. npm and generated desktop-entry caches use the user cache directory, normally `~/.cache/omarchy-billboard-generator/`. Development artifacts remain in the checkout's ignored `.cache/`.
 - Encoding uses a temporary file beside the destination and publishes only after verification. No-clobber output requires hard-link support; use a supporting filesystem or explicit replacement when appropriate.
 - SIGINT, SIGTERM and SIGHUP cancel work and clean owned temporary resources. A forced kill or power loss can leave temporary files; inspect them only when no render is running.
-- Preview playback may drop frames on heavy canvases. Exported videos still contain all 375 frames.
+- Preview playback may drop frames on heavy canvases. Exported videos still contain every frame for the selected duration.
 - No exact video-byte reproducibility is promised across different Chromium or ffmpeg versions.
 
 ## Development and licenses

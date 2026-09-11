@@ -14,6 +14,13 @@ export function effectMapping(layout, padTop, rows) {
   return { originY, splitRow, splitY, mapY: row => centerY(row + .5) - layout.cellH / 2 };
 }
 
+// Center on the font's capital body, not descenders elsewhere in the line.
+// The fixed font metric also keeps the cursor steady while letters appear.
+export function cursorVerticalBox(layout, line) {
+  const height = Math.max(layout.fontSize, layout.ascent + layout.descent);
+  return { top: line.y + layout.cursorCenterOffset - height / 2, height };
+}
+
 function layoutFont(config) {
   return { family: config.font?.family ?? 'JetBrains Mono', lineHeight: config.font?.lineHeight ?? 1.35 };
 }
@@ -68,6 +75,8 @@ export function calculateLayout(ctx, config) {
     warnings.push('Composition was reduced to fit this canvas. Inspect text and wordmark legibility.');
   }
   const { metrics, ascent, descent, lineHeight, gap, groupHeight } = measured;
+  const capital = ctx.measureText('H');
+  const cursorCenterOffset = (capital.actualBoundingBoxDescent - capital.actualBoundingBoxAscent) / 2;
   const logoHeight = wordmark.height * logoScale, baseWidth = wordmark.baseWidth * logoScale, fullWidth = wordmark.fullWidth * logoScale;
   const top = Math.round(Math.max(0, (height - groupHeight) / 2));
   const baseline = top + logoHeight + gap + ascent;
@@ -78,7 +87,7 @@ export function calculateLayout(ctx, config) {
   if (logoHeight < 24) warnings.push(`Wordmark is only ${logoHeight.toFixed(1)} px high; fine block details may disappear.`);
   return { width, height, unit, padding, logoScale, logoHeight, baseWidth, fullWidth, tailWidth: fullWidth - baseWidth,
     top, cellW, cellH, floorY, font: makeFont(), family, fontSize, cursorGap: Math.max(.01, 2 * unit),
-    cursorWidth: Math.max(.01, fontSize / 2), ascent, descent, lineHeight, baseline, warnings,
+    cursorWidth: Math.max(.01, fontSize / 2), cursorCenterOffset, ascent, descent, lineHeight, baseline, warnings,
     lines: lines.map((text, i) => ({ text, width: metrics[i].width, y: baseline + i * lineHeight })),
   };
 }

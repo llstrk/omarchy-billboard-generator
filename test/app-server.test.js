@@ -34,6 +34,29 @@ async function waitJob(request, id, status) {
   throw Error(`Job never reached ${status}.`);
 }
 
+test('duration validation, captured previews and progress use the selected frame count', async t => {
+  let captured, release;
+  const { request } = await fixture(t, { render: async (options, _snapshot, hooks) => {
+    captured = options; hooks.progress('Frame 251/750');
+    await new Promise(resolve => { release = resolve; });
+    return { output: options.output };
+  } });
+  for (const duration of [9, 31, 10.5, null, true, [], '10.0', '']) {
+    assert.equal((await request('/api/preview', { duration })).status, 400);
+  }
+  const preview = await (await request('/api/preview', { duration: 30 })).json();
+  assert.equal(preview.options.duration, 30);
+  const config = await (await request(`/api/previews/${preview.id}/config`)).json();
+  assert.equal(config.timeline.frameCount, 750);
+  try {
+    const job = await (await request('/api/jobs', { previewId: preview.id, filename: 'duration.mp4' })).json();
+    const running = await waitJob(request, job.id, 'running');
+    assert.equal(running.percent, 32); assert.equal(captured.duration, 30);
+    await request('/api/preview', { duration: 10 });
+    assert.equal(captured.duration, 30, 'Later edits must not mutate an export.');
+  } finally { release?.(); }
+});
+
 test('app authentication, origin checks, static containment and bounded requests', async t => {
   const { app, catalog, request, outputDirectory } = await fixture(t);
   assert.equal((await fetch(app.url + '/api/catalog')).status, 401);

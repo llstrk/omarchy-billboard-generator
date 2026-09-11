@@ -3,6 +3,7 @@ import { checkFonts } from './fonts.js';
 import { availableThemes } from './themes.js';
 import { animationById } from './animations.js';
 import { resolveThemeOptions, selectedTheme } from './custom-theme.js';
+import { videoTimeline } from '../web/timeline.js';
 
 export function renderTheme(options, snapshot) {
   const theme = selectedTheme(options, availableThemes(snapshot));
@@ -15,9 +16,10 @@ export function renderTheme(options, snapshot) {
 // Both the desktop preview and the encoder consume this exact configuration.
 export async function prepareRenderConfig(options, snapshot) {
   options = await resolveThemeOptions(options);
+  const timeline = videoTimeline(options.duration);
   const locale = snapshot.languages.find(l => l.id === options.language);
   const theme = renderTheme(options, snapshot);
   if (!locale || !theme) throw Error('Language and theme must exist in the available catalog.');
   const font = await checkFonts(locale);
-  return { ...options, animation: animationById(options.animation), locale, theme, font, commit: snapshot.commit, wordmark: await buildWordmark(options.tld) };
+  return { ...options, duration: timeline.duration, timeline, animation: animationById(options.animation), locale, theme, font, commit: snapshot.commit, wordmark: await buildWordmark(options.tld) };
 }

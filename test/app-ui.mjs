@@ -6,6 +6,7 @@ import { chromium } from 'playwright-core';
 import { execFileSync } from 'node:child_process';
 import { startAppServer } from '../src/app-server.js';
 import { loadSnapshot } from '../src/snapshot.js';
+import { checkDurationUI } from './duration-ui.js';
 import { root, executable, openRenderer, verifyVideo } from '../src/render.js';
 
 const base = join(root, '.cache/app-ui'); await mkdir(base, { recursive: true });
@@ -36,6 +37,8 @@ try {
   assert.equal(await page.locator('#animation option').count(), 38);
   assert.equal(await page.locator('#animation').inputValue(), 'laseretch-campaign');
   assert.equal(await page.locator('#theme').inputValue(), 'astral');
+  await checkDurationUI(page, snapshot);
+  report.checks.push('All 21 durations update transport and chapters, preserve paused/playing progress, reject fractions and match CLI pixels.');
   await page.screenshot({ path: join(base, 'default-astral.png'), fullPage: true });
   await page.locator('#theme').selectOption('hackerman');
   await page.waitForFunction(() => !document.getElementById('export').disabled && document.querySelector('#preview-mount iframe')?.contentWindow.layout?.settings.theme === 'hackerman');
@@ -324,11 +327,14 @@ try {
   await page.locator('#tld').fill('.dev');
   await page.waitForFunction(() => !document.getElementById('export').disabled && document.getElementById('canvas-size').textContent.includes('641'));
   assert.doesNotMatch(await page.locator('#warnings').textContent(), /untested/i);
+  await page.locator('#duration').fill('20');
+  await page.waitForFunction(() => !document.getElementById('export').disabled && document.querySelector('#preview-mount iframe')?.contentWindow.layout?.timeline.duration === 20);
   await page.locator('#autoname').uncheck(); await page.locator('#filename').fill('app-export.mp4'); await page.locator('#export').click();
   await page.waitForFunction(() => document.getElementById('job-status').textContent === 'EXPORT READY', null, { timeout: 120000 });
   const output = join(outputDirectory, 'app-export.mp4');
   const ffprobe = await executable(process.env.BILLBOARD_FFPROBE, ['ffprobe'], 'ffprobe');
-  const verified = await verifyVideo(output, ffprobe);
+  const verified = await verifyVideo(output, ffprobe, { duration: 20 });
+  assert.equal(JSON.parse(verified.format.tags.comment).frameCount, 500);
   assert.equal(verified.streams[0].width, 642); assert.equal(verified.streams[0].height, 362);
   assert.equal(JSON.parse(verified.format.tags.comment).background, 'black');
   assert.equal(JSON.parse(verified.format.tags.comment).backgroundColor, '#000000');
@@ -366,6 +372,7 @@ try {
   assert.equal(opened.length, 3, 'Cancelled exports must not open the player.');
   assert.ok(!(await readdir(outputDirectory)).some(file => file.startsWith('.billboard-')));
   report.checks.push('Cancelling a real export removes its temporary file and restores the UI.');
+  await page.locator('#duration').fill('15');
   await page.locator('#background').selectOption('theme');
   await page.locator('#language').selectOption('ar'); await page.locator('#theme').selectOption('white');
   await page.locator('#preset').selectOption('1080x1920');

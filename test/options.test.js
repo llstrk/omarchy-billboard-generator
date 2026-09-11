@@ -11,7 +11,7 @@ import { combinationWarnings } from '../src/support.js';
 const snapshot = await loadSnapshot();
 const parse = args => parseOptions(args, snapshot);
 test('defaults are explicit and suffix, language and theme are independent', () => {
-  assert.deepEqual(parse([]), { command: 'render', tld: '.ORG', language: 'en', theme: 'astral', animation: 'laseretch-campaign', background: 'theme', width: 900, height: 240, output: 'omarchy.mp4', force: false });
+  assert.deepEqual(parse([]), { command: 'render', tld: '.ORG', language: 'en', theme: 'astral', animation: 'laseretch-campaign', background: 'theme', width: 900, height: 240, duration: 15, output: 'omarchy.mp4', force: false });
   assert.equal(parse(['--tld', '.dk']).language, 'en');
   assert.equal(parse(['--language', 'da']).tld, '.ORG');
   for (const tld of ['dk', '.org', '.COM', '.de']) assert.equal(parse(['--tld', tld]).tld, '.' + tld.replace(/^\./, '').toUpperCase());
@@ -74,7 +74,8 @@ test('CLI help and missing dependency diagnostics', async t => {
   t.after(() => rm(cache, { recursive: true, force: true }));
   const help = spawnSync(process.execPath, ['bin/omarchy-billboard', '--help'], { encoding: 'utf8' });
   assert.equal(help.status, 0);
-  assert.match(help.stdout, /One 15-second, 25 fps H.264 MP4/);
+  assert.match(help.stdout, /One 25 fps H.264 MP4/);
+  assert.match(help.stdout, /--duration 15.*10 to 30/);
   const render = spawnSync(process.execPath, ['bin/omarchy-billboard'], { encoding: 'utf8', env: { ...process.env, BILLBOARD_CHROMIUM: join(cache, 'missing-chromium') } });
   assert.equal(render.status, 1);
   assert.match(render.stderr, /Chromium was not found/);

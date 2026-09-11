@@ -1,6 +1,7 @@
 import { websiteSimulation } from './website-simulation.js';
 import { drawCell, themeInk } from './etch-cells.js';
 import { introFrame, introPose, introProgress, introMapping, mappedBox } from './intro.js';
+import { referenceFrame, phaseById } from './timeline.js';
 
 function cellBox(index, frame, offset, layout, mapping) {
   const cellW = 5.1 * layout.logoScale, cellH = 5 * layout.logoScale;
@@ -34,16 +35,19 @@ function paletteSettle(config, artwork) {
   };
 }
 export async function createWebsiteAnimation(config, layout, artwork, ctx) {
-  const simulation = await websiteSimulation(config.animation, config.theme, layout), ink = themeInk(config.theme);
+  const simulation = await websiteSimulation(config.animation, config.theme, layout, config.timeline), ink = themeInk(config.theme);
   const settle = paletteSettle(config, artwork);
   return {
     metadata: { seeds: [42], simulationFps: config.animation.stepsPerSecond, totalSteps: simulation.totalSteps,
       animationProvenance: config.animation.provenance, animationViewport: simulation.viewport, nativeEffectColors: false,
-      effectTreatment: 'Website bitmap cells and nearest-brightness theme inks', animationDuration: 5, settleMs: 500 },
+      effectTreatment: 'Website bitmap cells and nearest-brightness theme inks', animationDuration: phaseById(config.timeline, 'tagline').start,
+      settleMs: 500, animationSamples: simulation.frames.length },
     draw(index, x) {
-      if (index >= 125) { ctx.drawImage(artwork.base, x, layout.top); return; }
-      const time = index / 25, pose = introPose(layout, time), mapping = introMapping(layout, pose);
-      drawFrame(ctx, simulation.frames[introFrame(index, 119)], simulation.offset, layout, mapping, ink);
+      const clock = referenceFrame(config.timeline, index);
+      if (clock >= 125) { ctx.drawImage(artwork.base, x, layout.top); return; }
+      const time = clock / 25, pose = introPose(layout, time), mapping = introMapping(layout, pose);
+      const sample = config.duration === 15 ? introFrame(index, 119) : index;
+      drawFrame(ctx, simulation.frames[sample], simulation.offset, layout, mapping, ink);
       settle(ctx, pose, introProgress(time));
     },
   };

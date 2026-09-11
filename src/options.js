@@ -2,11 +2,12 @@ import { parseArgs } from 'node:util';
 import { normalizeSuffix } from './suffix.js';
 import { availableThemes } from './themes.js';
 import { animationById } from './animations.js';
+import { durationSeconds } from '../web/timeline.js';
 
 const argumentOptions = {
   help: { type: 'boolean', short: 'h' },
   'list-themes': { type: 'boolean' }, 'list-languages': { type: 'boolean' }, 'list-animations': { type: 'boolean' },
-  animation: { type: 'string' }, 'theme-file': { type: 'string' },
+  animation: { type: 'string' }, duration: { type: 'string' }, 'theme-file': { type: 'string' },
   tld: { type: 'string' }, language: { type: 'string' }, theme: { type: 'string' },
   background: { type: 'string' }, resolution: { type: 'string' }, output: { type: 'string' }, force: { type: 'boolean' }, revision: { type: 'string' },
 };
@@ -18,7 +19,7 @@ function commandName(values, positionals) {
   return actions[0] ?? 'render';
 }
 function validateCommand(command, values) {
-  const renderKeys = ['tld', 'language', 'theme', 'theme-file', 'animation', 'background', 'resolution', 'output', 'force'];
+  const renderKeys = ['tld', 'language', 'theme', 'theme-file', 'animation', 'duration', 'background', 'resolution', 'output', 'force'];
   if (command !== 'render' && renderKeys.some(k => k in values)) throw Error('Render options cannot be combined with list or sync commands.');
   if (command !== 'sync' && values.revision) throw Error('--revision is only valid with sync.');
 }
@@ -62,7 +63,7 @@ function renderOptions(values, snapshot) {
   return {
     command: 'render', tld: normalizeSuffix(selected.tld), language: languageId(selected.language, snapshot),
     ...themeSelection(values, snapshot), animation: animationById(selected.animation).id, background: backgroundId(selected.background),
-    ...dimensions(selected.resolution), output: outputPath(selected.output), force: selected.force,
+    ...dimensions(selected.resolution), duration: durationSeconds(selected.duration), output: outputPath(selected.output), force: selected.force,
   };
 }
 export function parseOptions(args, snapshot) {

@@ -19,7 +19,8 @@ const help = `Usage: omarchy-billboard [options]
   --theme-file FILE     Use a custom JSON palette instead of --theme
   --background theme    Canvas background: theme, black or white
   --resolution 900x240  Any positive WIDTHxHEIGHT, including square and portrait
-  --output omarchy.mp4  One 15-second, 25 fps H.264 MP4, no audio
+  --duration 15        Whole seconds from 10 to 30; transitions keep their speed
+  --output omarchy.mp4  One 25 fps H.264 MP4, no audio
   --force               Replace an existing output only after successful encoding
   -h, --help            Show this help
 

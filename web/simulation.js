@@ -1,4 +1,5 @@
 import { a as loadRuntime } from '../assets/runtime/assets/playback.js';
+import { videoTimeline, introSamples } from './timeline.js';
 
 const columns = 121, rows = 20, logoColumns = 81, logoRows = 10;
 async function asset(fetchSource, path, message) {
@@ -23,17 +24,25 @@ function readFrame(session) {
   session.fill(symbols, fg, bg, flags);
   return { symbols, fg, bg, flags };
 }
-function capture(make, seed) {
-  const totalSteps = countSteps(make(seed));
+function sample(make, seed, totalSteps, positions) {
   const session = make(seed), frames = []; let steps = 0;
   try {
-    for (let index = 0; index <= 125; index++) {
-      const target = Math.max(1, Math.floor(totalSteps * index / 125));
+    for (const position of positions) {
+      const target = Math.max(1, Math.floor(totalSteps * position / 125));
       while (steps < target) { session.step(); steps++; }
       frames.push(readFrame(session));
     }
   } finally { session.free(); }
-  return { frames, totalSteps };
+  return frames;
+}
+function capture(make, seed) {
+  const totalSteps = countSteps(make(seed));
+  return { totalSteps, frames: sample(make, seed, totalSteps, Array.from({ length: 126 }, (_, i) => i)) };
+}
+function playbackFrames(make, primary, secondary, timeline) {
+  if (timeline.duration === 15) return null;
+  return { primary: sample(make, 42, primary.totalSteps, introSamples(timeline, 125)),
+    secondary: sample(make, 137, secondary.totalSteps, introSamples(timeline, 125, false)) };
 }
 function matchesLogo(logoLines, final, px, py) {
   for (let r = 0; r < logoRows; r++) for (let c = 0; c < logoColumns; c++) {
@@ -47,7 +56,7 @@ function settledOffset(logoLines, final) {
   }
   throw Error('Cannot locate settled logo inside native effect grid.');
 }
-export async function createSimulation(fetchSource = fetch) {
+export async function createSimulation(fetchSource = fetch, timeline = videoTimeline()) {
   const response = await asset(fetchSource, '/assets/runtime/logo.txt', 'Cannot load ASCII logo input.');
   const text = await response.text();
   const wasm = await asset(fetchSource, '/assets/runtime/laseretch.wasm', 'Cannot load laseretch WASM.');
@@ -58,5 +67,5 @@ export async function createSimulation(fetchSource = fetch) {
   const { padX, padTop } = settledOffset(logoLines, final);
   const targets = new Uint32Array(columns * rows).fill(32);
   for (let r = 0; r < logoRows; r++) for (let c = 0; c < logoColumns; c++) targets[(r + padTop) * columns + c + padX] = logoLines[r][c];
-  return { primary, secondary, final, targets, columns, rows, padX, padTop };
+  return { primary, secondary, final, targets, columns, rows, padX, padTop, playback: playbackFrames(make, primary, secondary, timeline) };
 }

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { calculateLayout, effectMapping } from '../web/layout.js';
+import { calculateLayout, effectMapping, cursorVerticalBox } from '../web/layout.js';
 import { buildWordmark } from '../src/wordmark.js';
 
 function context() {
@@ -22,6 +22,17 @@ test('the floor follows canvas height, including square, portrait and small canv
     assert.ok(layout.fullWidth <= width);
     assert.ok(layout.top >= 0 && layout.baseline + layout.descent <= height + 1);
   }
+});
+
+test('cursor preserves its height and centers on capitals regardless of line descenders', () => {
+  const layout = { fontSize: 34, ascent: 25, descent: 7, cursorCenterOffset: -12.5 };
+  for (const line of [{ y: 215, ascent: 25, descent: 7 }, { y: 261, ascent: 23, descent: 0 }]) {
+    const cursor = cursorVerticalBox(layout, line);
+    assert.equal(cursor.height, 34);
+    assert.equal(cursor.top + cursor.height / 2, line.y - 12.5);
+  }
+  assert.deepEqual(cursorVerticalBox(layout, { y: 215, ascent: 25, descent: 7 }), { top: 185.5, height: 34 });
+  assert.deepEqual(cursorVerticalBox({ fontSize: 30, ascent: 32, descent: 8, cursorCenterOffset: -11 }, { y: 100 }), { top: 69, height: 40 });
 });
 
 test('long suffixes, small canvases and multiline copy warn rather than enforce layout gates', async () => {

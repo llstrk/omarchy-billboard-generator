@@ -1,8 +1,9 @@
 import { createAnimation } from './animations.js';
-import { calculateLayout, attachment } from './layout.js';
+import { calculateLayout, attachment, cursorVerticalBox } from './layout.js';
 import { backgroundWarnings } from './contrast.js';
 import { createArtwork } from './artwork.js';
 import { introMetadata } from './intro.js';
+import { referenceTime, phaseById } from './timeline.js';
 
 async function loadConfiguration() {
   const preview = new URLSearchParams(location.search).get('preview');
@@ -29,10 +30,10 @@ async function loadFonts(config) {
   }
   await document.fonts.ready;
 }
-function validateIndex(index) {
-  if (!Number.isInteger(index) || index < 0 || index >= 375) throw Error('Frame index must be between 0 and 374.');
+function validateIndex(index, timeline) {
+  if (!Number.isInteger(index) || index < 0 || index >= timeline.frameCount) throw Error(`Frame index must be between 0 and ${timeline.lastFrame}.`);
 }
-const cursorVisible = (p, time) => p < 1 || ((time - 7) % 1 + 1) % 1 < .5;
+const cursorVisible = (p, elapsed) => p < 1 || ((elapsed % 1 + 1) % 1) < .5;
 
 async function initialize() {
   const config = await loadConfiguration(), { width, height, theme, locale } = config;
@@ -42,14 +43,16 @@ async function initialize() {
   layout.warnings.push(...backgroundWarnings(config));
   const artwork = createArtwork(config, layout), { suffix } = artwork;
   const animation = await createAnimation(config, layout, artwork, ctx);
+  const typing = phaseById(config.timeline, 'tagline'), typingEndFrame = typing.startFrame + typing.duration * 25;
   const segmenter = new Intl.Segmenter(locale.id, { granularity: 'grapheme' });
   const lines = layout.lines.map(line => ({ ...line, clusters: [...segmenter.segment(line.text)].map(s => s.segment) }));
   const clusterCount = lines.reduce((n, line) => n + line.clusters.length, 0);
   function drawCursor(line, shown, start) {
     const advance = ctx.measureText(shown).width;
     const cursorX = locale.direction === 'rtl' ? start - advance - layout.cursorGap - layout.cursorWidth : start + advance + layout.cursorGap;
+    const { top, height } = cursorVerticalBox(layout, line);
     ctx.save(); ctx.fillStyle = theme.cursor ?? theme.brand;
-    ctx.fillRect(Math.round(cursorX), line.y - layout.ascent, layout.cursorWidth, Math.max(layout.fontSize, layout.ascent + layout.descent));
+    ctx.fillRect(Math.round(cursorX), top, layout.cursorWidth, height);
     ctx.restore();
   }
   function drawTypedLine(line, count, active, p, time) {
@@ -58,7 +61,7 @@ async function initialize() {
     ctx.fillText(shown, start, line.y);
     if (active && cursorVisible(p, time)) drawCursor(line, shown, start);
   }
-  function drawTagline(time) {
+  function drawTagline(time, cursorElapsed) {
     if (time < 5) return;
     const p = Math.min(1, (time - 5) / 2); let remaining = Math.floor(p * clusterCount);
     ctx.font = layout.font; ctx.textBaseline = 'alphabetic'; ctx.direction = locale.direction;
@@ -66,7 +69,7 @@ async function initialize() {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i], count = Math.min(remaining, line.clusters.length);
       const active = remaining <= line.clusters.length || i === lines.length - 1;
-      drawTypedLine(line, count, active, p, time);
+      drawTypedLine(line, count, active, p, cursorElapsed);
       remaining -= count;
       if (active) break;
     }
@@ -77,14 +80,14 @@ async function initialize() {
     ctx.drawImage(suffix, x, layout.top); ctx.restore();
   }
   window.layout = { ...layout, settings: { tld: config.tld, theme: theme.id, animation: config.animation.id, background: config.background ?? 'theme', backgroundColor: theme.background, themeOrigin: theme.origin, themeProvenance: theme.provenance, language: locale.id, revision: config.commit },
-    tagline: locale.tagline, direction: locale.direction, intro: introMetadata(layout), ...animation.metadata,
+    tagline: locale.tagline, direction: locale.direction, timeline: config.timeline, intro: introMetadata(layout, config.timeline), ...animation.metadata,
   };
   window.renderFrame = (index, encode = true) => {
-    validateIndex(index);
-    const time = index / 25, { x, reveal } = attachment(layout, time);
+    validateIndex(index, config.timeline);
+    const time = referenceTime(config.timeline, index), { x, reveal } = attachment(layout, time);
     ctx.globalAlpha = 1; ctx.fillStyle = theme.background; ctx.fillRect(0, 0, width, height);
     animation.draw(index, x);
-    drawTagline(time); drawSuffix(x, reveal);
+    drawTagline(time, (index - typingEndFrame) / 25); drawSuffix(x, reveal);
     return encode ? canvas.toDataURL('image/png').split(',')[1] : null;
   };
   window.ready = true;
