@@ -25,7 +25,7 @@ The default Astral theme with the completed domain and tagline:
 
 </details>
 
-The output-folder label is generalized for privacy; the rest is captured directly from the app.
+The output-folder label is generalized for privacy; the rest is captured directly from the app. These screenshots predate the fullscreen intro.
 
 ## Install on Omarchy
 
@@ -151,13 +151,16 @@ Every resolution is one canvas, never duplicated screens or a street mockup. The
 
 ## Animation and colors
 
-The campaign animation retains native laser/spark colors and independent simulations. Only settled artwork receives the selected gradient. Its ember floor follows the canvas bottom; pile packing is a visual support approximation, not a full particle collision simulation.
+All animations begin with a large, centered wordmark that fits the canvas without changing its proportions. Between 4.5 and 5 seconds it smoothly shrinks into position above the tagline. The surrounding effect fits the canvas margins instead of globally zooming or cropping the whole frame. Final artwork is rasterized directly at each size.
 
-Website effects use canvas-sized simulation grids with overscan around the unchanged logo cell scale. Synthgrid can reach all four canvas edges. Text-focused effects may stay near the wordmark by design. Website `laseretch` is distinct from `laseretch-campaign` and does not receive additional campaign piles. Simulation grids above 200,000 cells fail before allocation.
+The campaign animation retains native laser/spark colors and independent simulations. Only settled artwork receives the selected gradient. Its ember floor remains stationary near the canvas bottom during the move, with unchanged cooling timing. Pile packing is a visual support approximation, not a full particle collision simulation.
+
+Website effects retain precomputed canvas-sized simulation grids with overscan. Their cells follow the moving wordmark, and the final gradient settles during the same half-second move. Synthgrid can reach all four canvas edges. Text-focused effects may stay near the wordmark by design. Website `laseretch` is distinct from `laseretch-campaign` and does not receive additional campaign piles. Simulation grids above 200,000 cells fail before allocation.
 
 The timeline is fixed:
 
-- 0–5 seconds: selected effect draws OMARCHY.
+- 0–4.5 seconds: selected effect draws a large, centered OMARCHY.
+- 4.5–5 seconds: wordmark shrinks into its final position; website-effect grading settles with the move.
 - 5–7 seconds: localized tagline, including DHH attribution, is typed.
 - 9.5–10.5 seconds: the suffix appears while the domain stays centered.
 - 10.5–15 seconds: completed composition holds.
@@ -175,7 +178,7 @@ omarchy-billboard sync --revision 5f908e4a85b8a4594be73db725906cf656660823
 
 Sync resolves one upstream commit, validates all data and atomically replaces `upstream.json` in the user data directory (normally `~/.local/share/omarchy-billboard-generator/`). Failed sync preserves the previous snapshot. Remove that cache file to restore bundled data. Sync does not update executable animation assets, fonts, campaign palettes or custom imports. Downloaded TypeScript is parsed as data, not executed.
 
-MP4 metadata records settings, translations, upstream revisions and simulation information. Custom palette data is embedded without its input file path. No sidecar is created.
+MP4 metadata records settings, translations, upstream revisions, simulation information and intro geometry/timing. Custom palette data is embedded without its input file path. No sidecar is created.
 
 ## Troubleshooting and safety
 

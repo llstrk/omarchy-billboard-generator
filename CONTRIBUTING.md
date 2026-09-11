@@ -12,6 +12,7 @@ npm run test:app
 npm run test:custom-themes
 npm run test:animations
 npm run test:canvas-effects
+npm run test:intro
 npm run test:visual
 npm run test:integration
 npm run test:experimental

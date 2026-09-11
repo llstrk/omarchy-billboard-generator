@@ -1,6 +1,8 @@
 import { createAnimation } from './animations.js';
 import { calculateLayout, attachment } from './layout.js';
 import { backgroundWarnings } from './contrast.js';
+import { createArtwork } from './artwork.js';
+import { introMetadata } from './intro.js';
 
 async function loadConfiguration() {
   const preview = new URLSearchParams(location.search).get('preview');
@@ -33,25 +35,13 @@ function validateIndex(index) {
 const cursorVisible = (p, time) => p < 1 || ((time - 7) % 1 + 1) % 1 < .5;
 
 async function initialize() {
-  const config = await loadConfiguration(), { width, height, theme, locale, wordmark } = config;
+  const config = await loadConfiguration(), { width, height, theme, locale } = config;
   const { canvas, ctx } = outputCanvas(width, height);
   await loadFonts(config);
   const layout = calculateLayout(ctx, config);
   layout.warnings.push(...backgroundWarnings(config));
-  function artwork(rectangles) {
-    const out = document.createElement('canvas'); out.width = Math.ceil(layout.fullWidth); out.height = Math.ceil(layout.logoHeight);
-    const c = out.getContext('2d'), gradient = c.createLinearGradient(0, 0, 0, layout.logoHeight);
-    for (const b of theme.gradient) { gradient.addColorStop(b.from / 100, b.color); gradient.addColorStop(b.to / 100, b.color); }
-    c.fillStyle = gradient;
-    // Rasterize geometry directly at output size, never stretch a reference raster.
-    for (const r of rectangles) {
-      const x = Math.round(r.x * layout.logoScale), y = Math.round(r.y * layout.logoScale);
-      c.fillRect(x, y, Math.round((r.x + r.width) * layout.logoScale) - x, Math.round((r.y + r.height) * layout.logoScale) - y);
-    }
-    return out;
-  }
-  const base = artwork(wordmark.base), suffix = artwork(wordmark.suffix);
-  const animation = await createAnimation(config, layout, base, ctx);
+  const artwork = createArtwork(config, layout), { suffix } = artwork;
+  const animation = await createAnimation(config, layout, artwork, ctx);
   const segmenter = new Intl.Segmenter(locale.id, { granularity: 'grapheme' });
   const lines = layout.lines.map(line => ({ ...line, clusters: [...segmenter.segment(line.text)].map(s => s.segment) }));
   const clusterCount = lines.reduce((n, line) => n + line.clusters.length, 0);
@@ -87,7 +77,7 @@ async function initialize() {
     ctx.drawImage(suffix, x, layout.top); ctx.restore();
   }
   window.layout = { ...layout, settings: { tld: config.tld, theme: theme.id, animation: config.animation.id, background: config.background ?? 'theme', backgroundColor: theme.background, themeOrigin: theme.origin, themeProvenance: theme.provenance, language: locale.id, revision: config.commit },
-    tagline: locale.tagline, direction: locale.direction, ...animation.metadata,
+    tagline: locale.tagline, direction: locale.direction, intro: introMetadata(layout), ...animation.metadata,
   };
   window.renderFrame = (index, encode = true) => {
     validateIndex(index);

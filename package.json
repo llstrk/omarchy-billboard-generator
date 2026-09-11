@@ -1,6 +1,6 @@
 {
   "name": "omarchy-billboard-generator",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "bin": {
@@ -17,6 +17,7 @@
     "test:custom-themes": "node --import ./test/environment.js test/custom-themes.mjs",
     "test:cli": "node --import ./test/environment.js test/cli.mjs",
     "test:canvas-effects": "node --import ./test/environment.js test/canvas-effects.mjs",
+    "test:intro": "node --import ./test/environment.js test/intro.mjs",
     "test:animations": "node --import ./test/environment.js test/animations.mjs",
     "test:visual": "node --import ./test/environment.js test/visual.mjs",
     "test:integration": "node --import ./test/environment.js test/integration.mjs",

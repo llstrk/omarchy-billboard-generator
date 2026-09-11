@@ -42,16 +42,22 @@ export function createIndependentSparks(primary,secondary,columns,rows,cellW,cel
  const metadata={primarySeed:42,secondarySeed:137,airborneFrameSamples,differentAirborneFrames,method:'Independent native WASM simulations, not offset duplicates',groundDurationMultiplier,groundTiming:'Landing unchanged; replay cooling/color samples at quarter speed after landing',groundEventCount:runs.length,nativeGroundFrameSamples:nativeSamples,extendedGroundFrameSamples:nativeSamples*groundDurationMultiplier,lastGroundFrame:Math.max(...runs.map(r=>r.start+r.samples.length*groundDurationMultiplier-1)),groundEvents:runs.map(r=>({emitter:r.emitter,col:r.col,start:r.start,nativeFrames:r.samples.length,extendedFrames:r.samples.length*groundDurationMultiplier}))};
  const piles=createGlyphPiles(runs,{columns,rows,cellW,cellH,originX,lifetime:groundDurationMultiplier,drawGlyph,width,scale});
  metadata.piles=piles.metadata;
+ function drawAirborne(ctx,index){
+  let count=0;
+  if(index>=125)return count;
+  const f=secondary[index];for(let i=0;i<(rows-1)*columns;i++)if(isSpark(f,i)){
+   if(drawGlyph(ctx,i%columns,Math.floor(i/columns),{code:f.symbols[i],color:f.fg[i]&0xffffff,flags:f.flags[i]}))count++;
+  }
+  return count;
+ }
  return {
   metadata,
   withoutPrimaryFloor:index=>stripped[index],
+  drawAirborne,
+  drawGround:(ctx,index)=>piles.draw(ctx,index),
   draw(ctx,index){
-   let extraAirborne=0,ground=0;
    ctx.save();ctx.globalAlpha=1;ctx.imageSmoothingEnabled=false;
-   if(index<125){const f=secondary[index];for(let i=0;i<(rows-1)*columns;i++)if(isSpark(f,i)){
-    if(drawGlyph(ctx,i%columns,Math.floor(i/columns),{code:f.symbols[i],color:f.fg[i]&0xffffff,flags:f.flags[i]}))extraAirborne++;
-   }}
-   ground=piles.draw(ctx,index);
+   const extraAirborne=drawAirborne(ctx,index),ground=piles.draw(ctx,index);
    ctx.restore();return {extraAirborne,ground};
   }
  };

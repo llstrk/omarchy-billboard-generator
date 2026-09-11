@@ -24,6 +24,10 @@ try {
   const probe = JSON.parse(execFileSync(process.env.BILLBOARD_FFPROBE || 'ffprobe', ['-v', 'error', '-show_entries', 'format_tags=comment', '-of', 'json', output]));
   const settings = JSON.parse(probe.format.tags.comment);
   assert.equal(settings.theme, 'astral'); assert.equal(settings.animation, 'laseretch-campaign');
+  assert.equal(settings.intro.version, 1);
+  assert.equal(settings.intro.moveStart, 4.5); assert.equal(settings.intro.moveEnd, 5);
+  assert.ok(settings.intro.large.width > settings.intro.final.width);
+  assert.equal(settings.fixedGroundLayer, true); assert.equal(settings.nativeLaserTailClock, true);
   execFileSync(process.env.BILLBOARD_FFMPEG || 'ffmpeg', ['-v', 'error', '-xerror', '-i', output, '-f', 'null', '-'], { timeout: 30000 });
   app = spawn(join(paths.bin, 'omarchy-billboard-app'), ['--no-window'], { env, stdio: ['ignore', 'pipe', 'pipe'] });
   closed = new Promise(resolve => app.once('close', resolve));

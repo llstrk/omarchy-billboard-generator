@@ -40,6 +40,7 @@ function videoMetadata(options, snapshot, palette, renderer) {
     theme: options.theme, customTheme: options.customTheme, themeOrigin: palette.origin, themeProvenance: palette.provenance, background: options.background ?? 'theme', backgroundColor: palette.background,
     language: options.language, tld: options.tld, resolution: `${options.width}x${options.height}`, encodedResolution: `${size.width}x${size.height}`,
     animation: renderer.layout.settings.animation, animationProvenance: renderer.layout.animationProvenance, animationViewport: renderer.layout.animationViewport,
+    intro: renderer.layout.intro, fixedGroundLayer: renderer.layout.fixedGroundLayer, nativeLaserTailClock: renderer.layout.nativeLaserTailClock,
     seeds: renderer.layout.seeds, browser: renderer.browserVersion });
 }
 function encoderArgs(background, metadata, temporary) {
